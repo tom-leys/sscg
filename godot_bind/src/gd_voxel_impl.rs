@@ -87,25 +87,25 @@ impl Face {
 
         for i in 0..4 {
             let idx = tris[i];
-            uvs.push(&vec2(
+            uvs.set(*vtxlen as i32, &vec2(
                 FACE_TRIANGLE_VERTEX_UV[i][0],
                 FACE_TRIANGLE_VERTEX_UV[i][1]));
-            uvs2.push(&vec2(size as f32, size as f32));
+            uvs2.set(*vtxlen as i32, &vec2(size as f32, size as f32));
             let v = vec3(
                 (CUBE_VERTICES[idx][0] * size + offs.x) * scale,
                 (CUBE_VERTICES[idx][1] * size + offs.y) * scale,
                 (CUBE_VERTICES[idx][2] * size + offs.z) * scale);
-            verts.push(&v);
-            colors.push(&color);
-            normals.push(&vec3(normal[0], normal[1], normal[2]));
+            verts.set(*vtxlen as i32, &v);
+            colors.set(*vtxlen as i32, &color);
+            normals.set(*vtxlen as i32, &vec3(normal[0], normal[1], normal[2]));
             *vtxlen += 1;
         }
 
         for i in 4..10 {
             let idx = tris[i];
             let tri_vertex_index = *vtxlen as i32 - (4 - idx as i32);
-            indices.push(tri_vertex_index);
-            collision_tris.push(&verts.get(tri_vertex_index));
+            indices.set(*idxlen as i32, tri_vertex_index);
+            collision_tris.set(*idxlen as i32, &verts.get(tri_vertex_index));
             *idxlen += 1;
         }
     }
@@ -181,13 +181,17 @@ pub fn render_octree_to_am(cm: &ColorMap, vt: &Octree<u8>) -> RenderedMeshArrays
     let mut indices = Int32Array::new();
 
     let vol_size = vt.vol.size;
-//    verts  .resize(6 * 6 * (vol_size * vol_size * vol_size) as i32);
-//    uvs    .resize(6 * 6 * (vol_size * vol_size * vol_size) as i32);
-//    uvs2   .resize(6 * 6 * (vol_size * vol_size * vol_size) as i32);
-//    normals.resize(6 * 6 * (vol_size * vol_size * vol_size) as i32);
-//    colors .resize(6 * 6 * (vol_size * vol_size * vol_size) as i32);
-//    indices.resize(6 * 6 * (vol_size * vol_size * vol_size) as i32);
-//    va     .resize(6 * 6 * (vol_size * vol_size * vol_size) as i32);
+
+    let mut curr_vert_size : usize = 1 << 4;
+    let mut curr_index_size : usize  = 1 << 5;
+
+    verts  .resize(curr_vert_size as i32);
+    uvs    .resize(curr_vert_size as i32);
+    uvs2   .resize(curr_vert_size as i32);
+    normals.resize(curr_vert_size as i32);
+    colors .resize(curr_vert_size as i32);
+    indices.resize(curr_index_size as i32);
+    va     .resize(curr_index_size as i32);
 
     let mut idxlen = 0;
     let mut vtxlen = 0;
@@ -203,6 +207,21 @@ pub fn render_octree_to_am(cm: &ColorMap, vt: &Octree<u8>) -> RenderedMeshArrays
 //            || (pos.x == 0 && pos.y == 0 && pos.z == 1)
 //            || (pos.x == 1 && pos.y == 0 && pos.z == 1)
 //            ) { return; }
+
+        if vtxlen + 6 * 4  > curr_vert_size {
+            curr_vert_size <<= 1;
+            verts  .resize(curr_vert_size as i32);
+            uvs    .resize(curr_vert_size as i32);
+            uvs2   .resize(curr_vert_size as i32);
+            normals.resize(curr_vert_size as i32);
+            colors .resize(curr_vert_size as i32);
+        }
+
+        if idxlen + 6 * 10 > curr_index_size {
+            curr_index_size <<= 1;
+            indices.resize(curr_index_size as i32);
+            va     .resize(curr_index_size as i32);
+        }
 
         let clr = cm.map(v.color);
         let p = vec3(
@@ -241,13 +260,13 @@ pub fn render_octree_to_am(cm: &ColorMap, vt: &Octree<u8>) -> RenderedMeshArrays
         }
     });
 
-//    verts  .resize(vtxlen as i32);
-//    uvs    .resize(vtxlen as i32);
-//    uvs2   .resize(vtxlen as i32);
-//    normals.resize(vtxlen as i32);
-//    colors .resize(vtxlen as i32);
-//    indices.resize(idxlen as i32);
-//    va     .resize(idxlen as i32);
+    verts  .resize(vtxlen as i32);
+    uvs    .resize(vtxlen as i32);
+    uvs2   .resize(vtxlen as i32);
+    normals.resize(vtxlen as i32);
+    colors .resize(vtxlen as i32);
+    indices.resize(idxlen as i32);
+    va     .resize(idxlen as i32);
 
     let mut arr = VariantArray::new();
     arr.push(&Variant::from_vector3_array(&verts));
